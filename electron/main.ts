@@ -1,9 +1,14 @@
 import path from 'path'
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import { fileURLToPath } from 'url'
+import {
+  helper,
+  initWinShortcut,
+  wins,
+} from './win'
+import { initIpc } from './ipc'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
+globalThis.__dirname = path.dirname(fileURLToPath(import.meta.url))
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
 // The built directory structure
 //
@@ -24,34 +29,21 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0)
 }
 
-let win: BrowserWindow | null
-
-function createWindow() {
-  win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'logo.svg'),
-    webPreferences: {
-      preload: path.join(__dirname, './preload.mjs'),
-      nodeIntegration: true,
-    },
-  })
-
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL)
-    win.webContents.openDevTools()
-  } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(process.env.DIST, 'index.html'))
-  }
-}
-
 app.on('window-all-closed', () => {
   app.quit()
-  win = null
+  for (const [key, win] of Object.entries(wins)) {
+    win.close()
+    wins[key] = null
+  }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  // 打开主窗口
+  helper.openMainWin()
+
+  // 注册快捷键
+  initWinShortcut()
+
+  // 注册 IPC
+  initIpc()
+})

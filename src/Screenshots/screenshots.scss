@@ -1,0 +1,13 @@
+@import "./var.scss";
+
+.screenshots {
+	position: relative;
+	transform: translateZ(0);
+	cursor: crosshair;
+	font-family: $font-family;
+	&,
+	* {
+		box-sizing: border-box;
+		user-select: none;
+	}
+}

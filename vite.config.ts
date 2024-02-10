@@ -12,4 +12,12 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        index: 'index.html',
+        screenshot: 'screenshot.html',
+      },
+    },
+  },
 })

@@ -8,8 +8,8 @@ function createMainWin() {
     wins.main = new BrowserWindow({
       title: '截图-DEMO',
       icon: path.join(process.env.VITE_PUBLIC, 'logo.svg'),
-      width: 300,
-      height: 200,
+      // width: 300,
+      // height: 200,
       webPreferences: {
         preload: path.join(__dirname, 'preload.mjs'),
         // 开启在 preload 可以随意给渲染进程 window 对象挂载属性，兼顾 api 能力与安全
@@ -37,15 +37,15 @@ function createScreenshotWin() {
     wins.screenshot = new BrowserWindow({
       autoHideMenuBar: true, // 自动隐藏菜单栏
       useContentSize: true, // width 和 height 将设置为 web 页面的尺寸
-      movable: false, // 是否可移动
-      frame: false, // 无边框窗口
-      resizable: false, // 窗口大小是否可调整
-      hasShadow: false, // 窗口是否有阴影
-      transparent: true, // 使窗口透明
-      fullscreenable: true, // 窗口是否可以进入全屏状态
-      fullscreen: true, // 窗口是否全屏
-      simpleFullscreen: true, // 在 macOS 上使用 pre-Lion 全屏
-      alwaysOnTop: true,
+      // movable: false, // 是否可移动
+      // frame: false, // 无边框窗口
+      // resizable: false, // 窗口大小是否可调整
+      // hasShadow: false, // 窗口是否有阴影
+      // transparent: true, // 使窗口透明
+      // fullscreenable: true, // 窗口是否可以进入全屏状态
+      // fullscreen: true, // 窗口是否全屏
+      // simpleFullscreen: true, // 在 macOS 上使用 pre-Lion 全屏
+      // alwaysOnTop: true,
       webPreferences: {
         preload: path.join(__dirname, 'preload.mjs'),
         // 开启在 preload 可以随意给渲染进程 window 对象挂载属性，兼顾 api 能力与安全

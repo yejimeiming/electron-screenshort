@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useCursor } from '../hooks/useCursor'
-import { useEmiter } from '../hooks/useEmiter'
-import { useHistory } from '../hooks/useHistory'
-import { useOperation } from '../hooks/useOperation'
+import { useCursor } from '../hooks/use-cursor'
+import { useEmiter } from '../hooks/use-emiter'
+import { useHistory } from '../hooks/use-history'
+import { useOperation } from '../hooks/use-operation'
 import { getBoundsByPoints, getPoints, isPointInDraw } from './utils'
 import { useStore } from '../store'
 

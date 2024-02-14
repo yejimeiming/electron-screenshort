@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { provide } from 'vue'
-import ScreenshotsBackground from './screenshot-background/index.vue'
-import ScreenshotsCanvas from './screenshot-canvas/index.vue'
-import ScreenshotsOperations from './screenshot-operations/index.vue'
+import ScreenshotBackground from './screenshot-background/index.vue'
+import ScreenshotCanvas from './screenshot-canvas/index.vue'
+import ScreenshotOperations from './screenshot-operations/index.vue'
 import { composeImage } from './utils/image'
 import { useStore } from './store'
-import { USE_CALL_KEY } from './hooks/useCall'
+import { USE_CALL_KEY } from './hooks/use-call'
 
 import './styles/icons/iconfont.scss'
 import './styles/screenshot.scss'
@@ -78,8 +78,8 @@ const onContextMenu = (e: MouseEvent) => {
 
 <template>
 	<div class='screenshot-index' :style='{ width, height }' @dblclick='onDoubleClick' @contextmenu='onContextMenu'>
-		<ScreenshotsBackground />
-		<ScreenshotsCanvas ref='store.canvasContext' />
-		<ScreenshotsOperations />
+		<ScreenshotBackground />
+		<ScreenshotCanvas ref='store.canvasContext' />
+		<ScreenshotOperations />
 	</div>
 </template>

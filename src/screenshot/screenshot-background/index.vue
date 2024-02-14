@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import ScreenshotsMagnifier from '../screenshot-magnifier/index.vue'
+import ScreenshotMagnifier from '../screenshot-magnifier/index.vue'
 import { useStore } from '../store'
 import { getBoundsByPoints } from './utils'
 
@@ -107,7 +107,7 @@ onMounted(() => {
 	<div ref='oScreenshotBackground' class='screenshot-background' @mousedown='onMouseDown'>
 		<img class='screenshot-background-image' :src='store.url' />
 		<div class='screenshot-background-mask' />
-		<ScreenshotsMagnifier v-if='position && !store.bounds' :x='position.x' :y='position.y' />
+		<ScreenshotMagnifier v-if='position && !store.bounds' :x='position.x' :y='position.y' />
 	</div>
 </template>
 

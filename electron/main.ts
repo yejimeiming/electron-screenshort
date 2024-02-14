@@ -30,11 +30,12 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.on('window-all-closed', () => {
-  app.quit()
   for (const [key, win] of Object.entries(wins)) {
-    win.close()
+    win.closable && win.close()
     wins[key] = null
   }
+
+  app.quit()
 })
 
 app.whenReady().then(() => {

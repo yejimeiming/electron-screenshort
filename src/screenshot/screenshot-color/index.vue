@@ -1,0 +1,76 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const props = defineProps<{
+	value: string;
+	onChange: (value: string) => void;
+}>()
+
+const colors = ref([
+	"#ee5126",
+	"#fceb4d",
+	"#90e746",
+	"#51c0fa",
+	"#7a7a7a",
+	"#ffffff",
+])
+</script>
+
+<template>
+	<div class="screenshot-color">
+		<div v-for="color of colors" :key="color"
+			:class="['screenshot-color-item', { 'screenshot-color-active': color === value }]"
+			:style="{ backgroundColor: color }" @click="onChange?.(color)" />
+	</div>
+</template>
+
+<style lang="scss">
+@import "../styles/var.scss";
+
+.screenshot-color {
+	height: $sizecolor-size;
+	display: flex;
+	align-items: center;
+
+	&-item {
+		border: 1px solid #777;
+		width: $sizecolor-size;
+		height: $sizecolor-size;
+		cursor: pointer;
+		position: relative;
+		margin: 0 3px;
+
+		&:before {
+			content: "";
+			display: none;
+			position: absolute;
+			right: 0;
+			bottom: 0;
+			width: 10px;
+			height: 10px;
+			background-color: #333;
+		}
+
+		&:after {
+			content: "";
+			display: none;
+			width: 8px;
+			height: 4px;
+			position: absolute;
+			right: 5px;
+			bottom: 5px;
+			border-bottom: 2px solid #fff;
+			border-left: 2px solid #fff;
+			transform: translate(5px, 2px) rotate(-45deg) scale(0.8, 0.8);
+		}
+	}
+
+	&-active {
+
+		&:before,
+		&:after {
+			display: block;
+		}
+	}
+}
+</style>

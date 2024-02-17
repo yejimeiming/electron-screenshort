@@ -1,10 +1,11 @@
 import { HistoryItemType } from '../enums'
+import type { Bounds, DrawHistory } from '../types'
 
 export interface ComposeImageOpts {
   image: HTMLImageElement
   width: number
   height: number
-  history: IHistory
+  history: DrawHistory
   bounds: Bounds
 }
 

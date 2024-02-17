@@ -8,8 +8,8 @@ function createMainWin() {
     wins.main = new BrowserWindow({
       title: '截图-DEMO',
       icon: path.join(process.env.VITE_PUBLIC, 'logo.svg'),
-      // width: 300,
-      // height: 200,
+      width: 300,
+      height: 200,
       webPreferences: {
         preload: path.join(__dirname, 'preload.mjs'),
         // 开启在 preload 可以随意给渲染进程 window 对象挂载属性，兼顾 api 能力与安全

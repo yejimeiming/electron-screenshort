@@ -5,8 +5,8 @@
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "resolveJsonModule": true,
-    "allowJs": true,
     "jsx": "preserve",
+    "strict": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": "."

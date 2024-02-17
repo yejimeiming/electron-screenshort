@@ -1,51 +1,51 @@
 <script setup lang="ts">
-import { watch, ref } from 'vue'
-import { useCanvasMousedown } from '../../hooks/use-canvas-mousedown'
-import { useCanvasMousemove } from '../../hooks/use-canvas-mousemove'
-import { useCanvasMouseup } from '../../hooks/use-canvas-mouseup'
-import { useHistory } from '../../hooks/use-history'
-import { useOperation } from '../../hooks/use-operation'
-import { useCursor } from '../../hooks/use-cursor'
+import {
+  computed,
+  onUnmounted,
+  watch,
+  ref,
+} from 'vue'
+import { DHistory } from '../../funcs/draw.history'
+import { Canvas } from '../../screenshot-canvas/canvas'
+import { Events } from '../../screenshot-canvas/events'
 import { useStore } from '../../store'
 import { HistoryItemType } from '../../enums'
 import { MosaicData } from './types'
 import { draw, getColor } from './draw'
+import type { HistoryItemSource } from '../../types'
 import ScreenshotButton from '../../screenshot-button/index.vue'
 import ScreenshotSize from '../../screenshot-size/index.vue'
 
 const store = useStore()
-const [operation, operationDispatcher] = useOperation()
-const [history, historyDispatcher] = useHistory()
-const [, cursorDispatcher] = useCursor()
 const size = ref(3)
 const imageDataRef = ref<ImageData | null>(null)
 const mosaicRef = ref<HistoryItemSource<MosaicData, null> | null>(null)
 
-const checked = operation === 'Mosaic'
+const checked = computed(() => store.operation === 'Mosaic')
 
-const setSize = (s: number) => {
+const onSizeChange = (s: number) => {
   size.value = s
 }
 
 const selectMosaic = () => {
-  operationDispatcher.set('Mosaic')
-  cursorDispatcher.set('crosshair')
+  store.setOperation('Mosaic')
+  store.setCursor('default')
 }
 
 const onSelectMosaic = () => {
-  if (checked) {
+  if (checked.value) {
     return
   }
   selectMosaic()
-  historyDispatcher.clearSelect()
+  DHistory.clearSelect()
 }
 
-const onMousedown = (e: MouseEvent): void => {
-  if (!checked || mosaicRef.value || !imageDataRef.value || !store.canvasContext) {
+const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
+  if (!checked.value || mosaicRef.value || !imageDataRef.value || !Canvas.ctx) {
     return
   }
 
-  const rect = store.canvasContext.canvas.getBoundingClientRect()
+  const rect = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - rect.x
   const y = e.clientY - rect.y
   const mosaicSize = size.value * 2
@@ -65,14 +65,14 @@ const onMousedown = (e: MouseEvent): void => {
     editHistory: [],
     draw,
   }
-}
+})
 
-const onMousemove = (e: MouseEvent): void => {
-  if (!checked || !mosaicRef.value || !store.canvasContext || !imageDataRef.value) {
+const stopMousemove = Events.on('mousemove', (e: MouseEvent) => {
+  if (!checked.value || !mosaicRef.value || !Canvas.ctx || !imageDataRef.value) {
     return
   }
 
-  const rect = store.canvasContext.canvas.getBoundingClientRect()
+  const rect = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - rect.x
   const y = e.clientY - rect.y
 
@@ -117,26 +117,22 @@ const onMousemove = (e: MouseEvent): void => {
     }
   }
 
-  if (history.top !== mosaicRef.value) {
-    historyDispatcher.push(mosaicRef.value)
+  if (DHistory.history.top !== mosaicRef.value) {
+    DHistory.push(mosaicRef.value)
   } else {
-    historyDispatcher.set(history)
+    DHistory.set(DHistory.history)
   }
-}
+})
 
-const onMouseup = () => {
-  if (!checked) {
+const stopMouseup = Events.on('mouseup', () => {
+  if (!checked.value) {
     return
   }
 
   mosaicRef.value = null
-}
+})
 
-useCanvasMousedown(onMousedown)
-useCanvasMousemove(onMousemove)
-useCanvasMouseup(onMouseup)
-
-watch([
+watch(() => [
   store.width,
   store.height,
   store.bounds,
@@ -144,7 +140,7 @@ watch([
   checked,
 ], () => {
   const { bounds, image, width, height } = store
-  if (!bounds || !image || !checked) {
+  if (!bounds || !image || !checked.value) {
     return
   }
 
@@ -174,14 +170,20 @@ watch([
     bounds.height,
   )
 
-  imageDataRef.value = canvasContext.getImageData(0, 0, bounds.width, bounds.height)
+  // imageDataRef.value = canvasContext.getImageData(0, 0, bounds.width, bounds.height)
+})
+
+onUnmounted(() => {
+  stopMousedown()
+  stopMousemove()
+  stopMouseup()
 })
 </script>
 
 <template>
   <ScreenshotButton title="马赛克" icon="icon-mosaic" :checked="checked" @click="onSelectMosaic">
     <template v-slot:option>
-      <ScreenshotSize :value="size" :onChange="setSize" />
+      <ScreenshotSize :value="size" :onChange="onSizeChange" />
     </template>
   </ScreenshotButton>
 </template>

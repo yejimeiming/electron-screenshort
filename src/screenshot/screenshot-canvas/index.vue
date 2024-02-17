@@ -1,217 +1,151 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useCursor } from '../hooks/use-cursor'
-import { useEmiter } from '../hooks/use-emiter'
-import { useHistory } from '../hooks/use-history'
-import { useOperation } from '../hooks/use-operation'
-import { getBoundsByPoints, getPoints, isPointInDraw } from './utils'
+import {
+	computed,
+	ref,
+	watch,
+	onMounted,
+	onUnmounted,
+} from 'vue'
+import { Mouse } from '../funcs/mouse'
+import { resizeOrMoveBounds, getPointsByMouseMove } from '../funcs/mouse.utils'
 import { useStore } from '../store'
+import { DHistory } from '../funcs/draw.history'
+import { HistoryItemType, ResizePoints } from '../enums'
+import type { Bounds, ResizeOrMove } from '../types'
+import { isPointInDraw } from './utils'
+import { Canvas } from './canvas'
+import { Events } from './events'
 
 const borders = ['top', 'right', 'bottom', 'left']
-enum ResizePoints {
-	ResizeTop = 'top',
-	ResizetopRight = 'top-right',
-	ResizeRight = 'right',
-	ResizeRightBottom = 'right-bottom',
-	ResizeBottom = 'bottom',
-	ResizeBottomLeft = 'bottom-left',
-	ResizeLeft = 'left',
-	ResizeLeftTop = 'left-top',
-	Move = 'move',
-}
-const resizePoints = [
-	ResizePoints.ResizeTop,
-	ResizePoints.ResizetopRight,
-	ResizePoints.ResizeRight,
-	ResizePoints.ResizeRightBottom,
-	ResizePoints.ResizeBottom,
-	ResizePoints.ResizeBottomLeft,
-	ResizePoints.ResizeLeft,
-	ResizePoints.ResizeLeftTop,
-]
+const $temp: {
+	bounds?: Bounds // 快照，用在 move 时 += 操作
+	resizeOrMove?: ResizeOrMove
+} = {}
 
 const store = useStore()
-const emiter = useEmiter()
-const [history] = useHistory()
-const [cursor] = useCursor()
-const [operation] = useOperation()
-const resizeOrMoveRef = ref<string>()
-const pointRef = ref<Point | null>(null)
-const boundsRef = ref<Bounds | null>(null)
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const ctxRef = ref<CanvasRenderingContext2D | null>(null)
-
-const isCanResize = store.bounds && !history.stack.length && !operation
+const oCanvas = ref<HTMLCanvasElement | null>(null)
+const isResizeable = computed(() => store.bounds && !DHistory.history.stack.length && !store.operation)
+const $bounds = computed<Bounds>(() => store.bounds ?? { x: 0, y: 0, width: 0, height: 0 })
 
 const draw = () => {
-	if (!store.bounds || !ctxRef.value) {
-		return
+	const { bounds } = store
+	const ctx = Canvas.ctx
+	if (!bounds || !ctx) {
+		throw new Error('加载绘制画布失败')
 	}
 
-	const ctx = ctxRef.value
 	ctx.imageSmoothingEnabled = true
 	// 设置太高，图片会模糊
 	ctx.imageSmoothingQuality = 'low'
 	ctx.clearRect(0, 0, bounds.width, bounds.height)
 
-	history.stack.slice(0, history.index + 1).forEach((item) => {
+	DHistory.history.stack.slice(0, DHistory.history.index + 1).forEach((item) => {
 		if (item.type === HistoryItemType.Source) {
 			item.draw(ctx, item)
 		}
 	})
 }
 
-const onMouseDown = (e: React.MouseEvent, resizeOrMove: string) => {
-	if (e.button !== 0 || !bounds) {
-		return
+const updateBounds = (mousedownEvent: MouseEvent, mousemoveEvent: MouseEvent) => {
+	const [startPoint, endPoint] = getPointsByMouseMove(
+		{ x: mousedownEvent.clientX, y: mousedownEvent.clientY },
+		{ x: mousemoveEvent.clientX, y: mousemoveEvent.clientY },
+		$temp.bounds!,
+		$temp.resizeOrMove!,
+	)
+
+	store.setBounds(resizeOrMoveBounds(
+		startPoint,
+		endPoint,
+		store.width,
+		store.height,
+		$temp.bounds!,
+		$temp.resizeOrMove!,
+	))
+}
+
+DHistory.listen(() => draw())
+
+Mouse.move(({ event, mousedown }) => {
+	if (store.operation) { // 二次绘制
+		Events.emit('mousemove', event)
+	} else if (store.bounds && $temp.resizeOrMove) {
+		updateBounds(mousedown?.event!, event)
 	}
-	if (!operation) {
-		resizeOrMoveRef.value = resizeOrMove
-		pointRef.value = {
-			x: e.clientX,
-			y: e.clientY,
-		}
-		boundsRef.value = {
-			x: bounds.x,
-			y: bounds.y,
-			width: bounds.width,
-			height: bounds.height,
-		}
+})
+
+Mouse.up(({ event }) => {
+	if (store.operation) {
+		Events.emit('mouseup', event)
 	} else {
-		const draw = isPointInDraw(
-			bounds,
-			canvasRef.value,
-			history,
-			e.nativeEvent,
-		)
-		if (draw) {
-			emiter.emit('drawselect', draw, e.nativeEvent)
-		} else {
-			emiter.emit('mousedown', e.nativeEvent)
-		}
+		$temp.resizeOrMove = undefined
 	}
-}
+})
 
-const updateBounds = (e: MouseEvent) => {
-	if (
-		!resizeOrMoveRef.value ||
-		!pointRef.value ||
-		!boundsRef.value ||
-		!bounds
-	) {
-		return
-	}
-	const points = getPoints(
-		e,
-		resizeOrMoveRef.value,
-		pointRef.value,
-		boundsRef.value,
-	)
-	boundsDispatcher.set(
-		getBoundsByPoints(
-			points[0],
-			points[1],
-			bounds,
-			width,
-			height,
-			resizeOrMoveRef.value,
-		),
-	)
-}
-
-watch(
-	[
-		store.image,
-		store.bounds,
-		store.draw,
-	],
-	() => {
-		if (!store.image || !store.bounds || !canvasRef.value) {
-			ctxRef.value = null
+Mouse.down(({ event, dataset }) => {
+	const prefix = 'bounds:'
+	const mouseEvent = dataset.mouseEvent
+	if (mouseEvent?.startsWith(prefix)) {
+		const resizeOrMove = mouseEvent.replace(prefix, '') as ResizeOrMove
+		const isMouseLeftButton = event.button === 0
+		if (!isMouseLeftButton || !store.bounds) {
 			return
 		}
 
-		if (!ctxRef.value) {
-			ctxRef.value = canvasRef.value.getContext('2d')
-		}
+		if (store.operation) {
+			const draw = isPointInDraw(
+				store.bounds,
+				Canvas.ctx?.canvas!,
+				DHistory.history,
+				event,
+			)
 
-		draw()
-	})
-
-watch([store.operation], () => {
-	const onMouseMove = (e: MouseEvent) => {
-		if (!operation) {
-			if (
-				!resizeOrMoveRef.value ||
-				!pointRef.value ||
-				!boundsRef.value
-			) {
-				return
+			if (draw) {
+				Events.emit('drawselect', event, draw)
+			} else {
+				Events.emit('mousedown', event)
 			}
-			updateBounds(e)
 		} else {
-			emiter.emit('mousemove', e)
+			$temp.bounds = { ...store.bounds }
+			$temp.resizeOrMove = resizeOrMove
 		}
-	}
-
-	const onMouseUp = (e: MouseEvent) => {
-		if (!operation) {
-			if (
-				!resizeOrMoveRef.value ||
-				!pointRef.value ||
-				!boundsRef.value
-			) {
-				return
-			}
-			updateBounds(e)
-			resizeOrMoveRef.value = undefined
-			pointRef.value = null
-			boundsRef.value = null
-		} else {
-			emiter.emit('mouseup', e)
-		}
-	}
-	window.addEventListener('mousemove', onMouseMove)
-	window.addEventListener('mouseup', onMouseUp)
-
-	return () => {
-		window.removeEventListener('mousemove', onMouseMove)
-		window.removeEventListener('mouseup', onMouseUp)
 	}
 })
+
+onMounted(() => Canvas.ctx = oCanvas.value?.getContext('2d')!)
+onUnmounted(() => Canvas.ctx = null)
 </script>
 
 <template>
-	<div class='screenshots-canvas' :style="{
-		width: bounds?.width || 0,
-		height: bounds?.height || 0,
-		transform: bounds ? `translate(${bounds.x}px, ${bounds.y}px)` : 'none',
+	<div class="screenshot-canvas" :style="{
+		width: `${$bounds.width}px`,
+		height: `${$bounds.height}px`,
+		transform: `translate(${$bounds.x}px, ${$bounds.y}px)`,
 	}">
-		<div class='screenshots-canvas-body'>
+		<div class="screenshot-canvas-body">
 			<!-- 保证一开始就显示，减少加载时间 -->
-			<img class='screenshots-canvas-image' :src="url" style="{ 
-				width,
-				height,
-				transform: bounds ? `translate(${-bounds.x}px, ${-bounds.y}px)` : 'none',
+			<img class="screenshot-canvas-image" :src="store.url" :style="{
+				width: store.width,
+				height: store.height,
+				transform: `translate(${-$bounds.x}px, ${-$bounds.y}px)`,
 			}" />
-			<canvas :ref='canvasRef' class='screenshots-canvas-panel' :width="bounds?.width || 0"
-				:height="bounds?.height || 0" />
+			<canvas ref="oCanvas" class="screenshot-canvas-panel" :width="$bounds.width" :height="$bounds.height" />
 		</div>
-		<div class='screenshots-canvas-mask' :style="{ cursor }" @mousedown="onMouseDown($event, 'move')">
-			<div v-if='isCanResize' class='screenshots-canvas-size'>
-				{{ bounds.width }} &times; {{ bounds.height }}
+		<div class="screenshot-canvas-mask" :style="{ cursor: store.cursor }" data-mouse-event="bounds:move">
+			<div v-if="isResizeable" class="screenshot-canvas-size">
+				{{ $bounds.width }} &times; {{ $bounds.height }}
 			</div>
 		</div>
-		<div v-for="border of borders" :key="border" :class="`screenshots-canvas-border-${border}`" />
-		<div v-if="isCanResize" v-for="resizePoint of resizePoints" :key="resizePoint"
-			:class="`screenshots-canvas-point-${resizePoint}`" @mousedown="onMouseDown($event, resizePoint)" />
+		<div v-for="border of borders" :key="border" :class="`screenshot-canvas-border-${border}`" />
+		<div v-if="isResizeable" v-for="point of Object.values(ResizePoints)" :key="point"
+			:class="`screenshot-canvas-point-${point}`" :data-mouse-event="`bounds:${point}`" />
 	</div>
 </template>
 
 <style lang="scss">
 @import "../styles/var.scss";
 
-.screenshots-canvas {
+.screenshot-canvas {
 	position: absolute;
 	left: 0;
 	top: 0;

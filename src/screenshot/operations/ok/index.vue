@@ -1,33 +1,30 @@
 <script setup lang="ts">
-import { useHistory } from '../../hooks/use-history'
-import { useReset } from '../../hooks/use-reset'
+import { Call } from '../../funcs/call'
+import { DHistory } from '../../funcs/draw.history'
+import { Canvas } from '../../screenshot-canvas/canvas'
 import { composeImage } from '../../utils/image'
 import { useStore } from '../../store'
-import { useCall } from '../../hooks/use-call'
 import ScreenshotButton from '../../screenshot-button/index.vue'
 
 const store = useStore()
-const [, historyDispatcher] = useHistory()
-const call = useCall()
-const reset = useReset()
 
 const onClick = () => {
-  const { image, width, height, history, bounds } = store
-  historyDispatcher.clearSelect()
+  const { image, width, height, bounds } = store
+  DHistory.clearSelect()
 
   setTimeout(() => {
-    if (!store.canvasContext || !image || !bounds) {
+    if (!Canvas.ctx || !image || !bounds) {
       return
     }
     composeImage({
       image,
       width,
       height,
-      history,
+      history: DHistory.history,
       bounds
     }).then(blob => {
-      call.onOk(blob, bounds)
-      reset()
+      Call.onOk(blob, bounds)
+      store.reset()
     })
   })
 }

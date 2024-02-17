@@ -1,30 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useCanvasMousedown } from '../../hooks/use-canvas-mousedown'
-import { useCanvasMousemove } from '../../hooks/use-canvas-mousemove'
-import { useCanvasMouseup } from '../../hooks/use-canvas-mouseup'
-import { useDrawSelect } from '../../hooks/use-draw-select'
-import { useCursor } from '../../hooks/use-cursor'
+import {
+  computed,
+  onUnmounted,
+  ref,
+} from 'vue'
+import { DHistory } from '../../funcs/draw.history'
+import { Canvas } from '../../screenshot-canvas/canvas'
+import { Events } from '../../screenshot-canvas/events'
 import { useStore } from '../../store'
-import { useHistory } from '../../hooks/use-history'
-import { useOperation } from '../../hooks/use-operation'
 import { HistoryItemType } from '../../enums'
 import { isHit, isHitCircle } from '../utils'
 import { draw, getEditedEllipseData } from './draw'
-import { EllipseData, EllipseEditData, EllipseEditType } from './types'
+import {
+  type EllipseData,
+  type EllipseEditData,
+  EllipseEditType,
+} from './types'
+import type { HistoryItemEdit, HistoryItemSource } from '../../types'
 import ScreenshotButton from '../../screenshot-button/index.vue'
-import ScreenshotSizeColor from '../../screenshot-size-color/index.vue'
+import ScreenshotSize from '../../screenshot-size/index.vue'
+import ScreenshotColor from '../../screenshot-color/index.vue'
 
-const [history, historyDispatcher] = useHistory()
-const [operation, operationDispatcher] = useOperation()
-const [, cursorDispatcher] = useCursor()
 const store = useStore()
 const size = ref(3)
 const color = ref('#ee5126')
 const ellipseRef = ref<HistoryItemSource<EllipseData, EllipseEditData> | null>(null)
 const ellipseEditRef = ref<HistoryItemEdit<EllipseEditData, EllipseData> | null>(null)
 
-const checked = operation === 'Ellipse'
+const checked = computed(() => store.operation === 'Ellipse')
 
 const onSizeChange = (s: number) => {
   size.value = s
@@ -35,20 +38,23 @@ const onColorChange = (c: string) => {
 }
 
 const selectEllipse = () => {
-  operationDispatcher.set('Ellipse')
-  cursorDispatcher.set('crosshair')
+  store.setOperation('Ellipse')
+  store.setCursor('default')
 }
 
 const onSelectEllipse = () => {
-  if (checked) {
+  if (checked.value) {
     return
   }
   selectEllipse()
-  historyDispatcher.clearSelect()
+  DHistory.clearSelect()
 }
 
-const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent) => {
-  if (action.name !== 'Ellipse' || !store.canvasContext) {
+const stopDrawSelect = Events.on('drawselect', (
+  e: MouseEvent,
+  action: HistoryItemSource<unknown, unknown>,
+) => {
+  if (action.name !== 'Ellipse' || !Canvas.ctx) {
     return
   }
 
@@ -60,56 +66,56 @@ const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent
 
   let type = EllipseEditType.Move
   if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: (x1 + x2) / 2,
       y: y1
     })
   ) {
     type = EllipseEditType.ResizeTop
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: y1
     })
   ) {
     type = EllipseEditType.ResizeRightTop
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: (y1 + y2) / 2
     })
   ) {
     type = EllipseEditType.ResizeRight
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: y2
     })
   ) {
     type = EllipseEditType.ResizeRightBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: (x1 + x2) / 2,
       y: y2
     })
   ) {
     type = EllipseEditType.ResizeBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: y2
     })
   ) {
     type = EllipseEditType.ResizeLeftBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: (y1 + y2) / 2
     })
   ) {
     type = EllipseEditType.ResizeLeft
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: y1
     })
@@ -129,15 +135,15 @@ const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent
     source
   }
 
-  historyDispatcher.select(action)
-}
+  DHistory.select(action)
+})
 
-const onMousedown = (e: MouseEvent) => {
-  if (!checked || !store.canvasContext || ellipseRef.value) {
+const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
+  if (!checked.value || !Canvas.ctx || ellipseRef.value) {
     return
   }
 
-  const { left, top } = store.canvasContext.canvas.getBoundingClientRect()
+  const { left, top } = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - left
   const y = e.clientY - top
   ellipseRef.value = {
@@ -155,58 +161,61 @@ const onMousedown = (e: MouseEvent) => {
     draw,
     isHit
   }
-}
+})
 
-const onMousemove = (e: MouseEvent) => {
-  if (!checked || !store.canvasContext) {
+const stopMousemove = Events.on('mousemove', (e: MouseEvent) => {
+  if (!checked.value || !Canvas.ctx) {
     return
   }
 
   if (ellipseEditRef.value) {
     ellipseEditRef.value.data.x2 = e.clientX
     ellipseEditRef.value.data.y2 = e.clientY
-    if (history.top !== ellipseEditRef.value) {
+    if (DHistory.history.top !== ellipseEditRef.value) {
       ellipseEditRef.value.source.editHistory.push(ellipseEditRef.value)
-      historyDispatcher.push(ellipseEditRef.value)
+      DHistory.push(ellipseEditRef.value)
     } else {
-      historyDispatcher.set(history)
+      DHistory.set(DHistory.history)
     }
   } else if (ellipseRef.value) {
-    const { left, top } = store.canvasContext.canvas.getBoundingClientRect()
+    const { left, top } = Canvas.ctx.canvas.getBoundingClientRect()
     ellipseRef.value.data.x2 = e.clientX - left
     ellipseRef.value.data.y2 = e.clientY - top
 
-    if (history.top !== ellipseRef.value) {
-      historyDispatcher.push(ellipseRef.value)
+    if (DHistory.history.top !== ellipseRef.value) {
+      DHistory.push(ellipseRef.value)
     } else {
-      historyDispatcher.set(history)
+      DHistory.set(DHistory.history)
     }
   }
-}
+})
 
-const onMouseup = () => {
-  if (!checked) {
+const stopMouseup = Events.on('mouseup', () => {
+  if (!checked.value) {
     return
   }
 
   if (ellipseRef.value) {
-    historyDispatcher.clearSelect()
+    DHistory.clearSelect()
   }
 
   ellipseRef.value = null
   ellipseEditRef.value = null
-}
+})
 
-useDrawSelect(onDrawSelect)
-useCanvasMousedown(onMousedown)
-useCanvasMousemove(onMousemove)
-useCanvasMouseup(onMouseup)
+onUnmounted(() => {
+  stopDrawSelect()
+  stopMousedown()
+  stopMousemove()
+  stopMouseup()
+})
 </script>
 
 <template>
   <ScreenshotButton title="椭圆" icon="icon-ellipse" :checked="checked" @click="onSelectEllipse">
     <template v-slot:option>
-      <ScreenshotSizeColor :size="size" :color="color" :onSizeChange="onSizeChange" :onColorChange="onColorChange" />
+      <ScreenshotSize :value="size" :onChange="onSizeChange" />
+      <ScreenshotColor :value="color" :onChange="onColorChange" />
     </template>
   </ScreenshotButton>
 </template>

@@ -13,13 +13,13 @@ const sizes = ref([3, 6, 9])
 	<div class="screenshot-size">
 		<div v-for="size of sizes" :key="size" :class="['screenshot-size-item', { 'screenshot-size-active': size === value }]"
 			@click="onChange?.(size)">
-			<div class="screenshot-size-pointer" :style="{ width: size * 1.8, height: size * 1.8 }" />
+			<div class="screenshot-size-pointer" :style="{ width: `${size * 1.8}px`, height: `${size * 1.8}px` }" />
 		</div>
 	</div>
 </template>
 
 <style lang="scss">
-@import "../var.scss";
+@import "../styles/var.scss";
 
 .screenshot-size {
 	height: $sizecolor-size;

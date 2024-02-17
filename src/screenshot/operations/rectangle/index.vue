@@ -1,30 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useCanvasMousedown } from '../../hooks/use-canvas-mousedown'
-import { useCanvasMousemove } from '../../hooks/use-canvas-mousemove'
-import { useCanvasMouseup } from '../../hooks/use-canvas-mouseup'
-import { useCursor } from '../../hooks/use-cursor'
-import { useDrawSelect } from '../../hooks/use-draw-select'
-import { useHistory } from '../../hooks/use-history'
-import { useOperation } from '../../hooks/use-operation'
+import {
+  computed,
+  onUnmounted,
+  ref,
+} from 'vue'
+import { Canvas } from '../../screenshot-canvas/canvas'
+import { Events } from '../../screenshot-canvas/events'
+import { DHistory } from '../../funcs/draw.history'
 import { isHit, isHitCircle } from '../utils'
 import { useStore } from '../../store'
 import { HistoryItemType } from '../../enums'
 import { draw, getEditedRectangleData } from './draw'
-import { RectangleData, RectangleEditData, RectangleEditType } from './types'
+import {
+  type RectangleData,
+  type RectangleEditData,
+  RectangleEditType,
+} from './types'
+import type { HistoryItemEdit, HistoryItemSource } from '../../types'
 import ScreenshotButton from '../../screenshot-button/index.vue'
-import ScreenshotSizeColor from '../../screenshot-size-color/index.vue'
+import ScreenshotSize from '../../screenshot-size/index.vue'
+import ScreenshotColor from '../../screenshot-color/index.vue'
 
-const [history, historyDispatcher] = useHistory()
-const [operation, operationDispatcher] = useOperation()
-const [, cursorDispatcher] = useCursor()
 const store = useStore()
 const size = ref(3)
 const color = ref('#ee5126')
 const rectangleRef = ref<HistoryItemSource<RectangleData, RectangleEditData> | null>(null)
 const rectangleEditRef = ref<HistoryItemEdit<RectangleEditData, RectangleData> | null>(null)
 
-const checked = operation === 'Rectangle'
+const checked = computed(() => store.operation === 'Rectangle')
 
 const onSizeChange = (s: number) => {
   size.value = s
@@ -35,20 +38,23 @@ const onColorChange = (c: string) => {
 }
 
 const selectRectangle = () => {
-  operationDispatcher.set('Rectangle')
-  cursorDispatcher.set('crosshair')
+  store.setOperation('Rectangle')
+  store.setCursor('default')
 }
 
 const onSelectRectangle = () => {
-  if (checked) {
+  if (checked.value) {
     return
   }
   selectRectangle()
-  historyDispatcher.clearSelect()
+  DHistory.clearSelect()
 }
 
-const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent) => {
-  if (action.name !== 'Rectangle' || !store.canvasContext) {
+const stopDrawSelect = Events.on('drawselect', (
+  e: MouseEvent,
+  action: HistoryItemSource<unknown, unknown>,
+) => {
+  if (action.name !== 'Rectangle' || !Canvas.ctx) {
     return
   }
 
@@ -59,56 +65,56 @@ const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent
 
   let type = RectangleEditType.Move
   if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: (x1 + x2) / 2,
       y: y1
     })
   ) {
     type = RectangleEditType.ResizeTop
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: y1
     })
   ) {
     type = RectangleEditType.ResizeRightTop
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: (y1 + y2) / 2
     })
   ) {
     type = RectangleEditType.ResizeRight
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x2,
       y: y2
     })
   ) {
     type = RectangleEditType.ResizeRightBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: (x1 + x2) / 2,
       y: y2
     })
   ) {
     type = RectangleEditType.ResizeBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: y2
     })
   ) {
     type = RectangleEditType.ResizeLeftBottom
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: (y1 + y2) / 2
     })
   ) {
     type = RectangleEditType.ResizeLeft
   } else if (
-    isHitCircle(store.canvasContext.canvas, e, {
+    isHitCircle(Canvas.ctx.canvas, e, {
       x: x1,
       y: y1
     })
@@ -128,15 +134,15 @@ const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent
     source: action as HistoryItemSource<RectangleData, RectangleEditData>
   }
 
-  historyDispatcher.select(action)
-}
+  DHistory.select(action)
+})
 
-const onMousedown = (e: MouseEvent) => {
-  if (!checked || !store.canvasContext || rectangleRef.value) {
+const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
+  if (!checked.value || !Canvas.ctx || rectangleRef.value) {
     return
   }
 
-  const { left, top } = store.canvasContext.canvas.getBoundingClientRect()
+  const { left, top } = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - left
   const y = e.clientY - top
   rectangleRef.value = {
@@ -152,62 +158,65 @@ const onMousedown = (e: MouseEvent) => {
     },
     editHistory: [],
     draw,
-    isHit
+    isHit,
   }
-}
+})
 
-const onMousemove = (e: MouseEvent) => {
-  if (!checked || !store.canvasContext) {
+const stopMousemove = Events.on('mousemove', (e: MouseEvent) => {
+  if (!checked.value || !Canvas.ctx) {
     return
   }
 
   if (rectangleEditRef.value) {
     rectangleEditRef.value.data.x2 = e.clientX
     rectangleEditRef.value.data.y2 = e.clientY
-    if (history.top !== rectangleEditRef.value) {
-      rectangleEditRef.value.source.editHistory.push(rectangleEditRef.value)
-      historyDispatcher.push(rectangleEditRef.value)
+    if (DHistory.history.top === rectangleEditRef.value) {
+      DHistory.set(DHistory.history)
     } else {
-      historyDispatcher.set(history)
+      rectangleEditRef.value.source.editHistory.push(rectangleEditRef.value)
+      DHistory.push(rectangleEditRef.value)
     }
   } else if (rectangleRef.value) {
-    const { left, top } = store.canvasContext.canvas.getBoundingClientRect()
+    const { left, top } = Canvas.ctx.canvas.getBoundingClientRect()
     const rectangleData = rectangleRef.value.data
     rectangleData.x2 = e.clientX - left
     rectangleData.y2 = e.clientY - top
 
-    if (history.top !== rectangleRef.value) {
-      historyDispatcher.push(rectangleRef.value)
+    if (DHistory.history.top === rectangleRef.value) {
+      DHistory.set(DHistory.history)
     } else {
-      historyDispatcher.set(history)
+      DHistory.push(rectangleRef.value)
     }
   }
-}
+})
 
-const onMouseup = () => {
-  if (!checked) {
+const stopMouseup = Events.on('mouseup', () => {
+  if (!checked.value) {
     return
   }
 
   if (rectangleRef.value) {
-    historyDispatcher.clearSelect()
+    DHistory.clearSelect()
   }
 
   rectangleRef.value = null
   rectangleEditRef.value = null
-}
+})
 
-useDrawSelect(onDrawSelect)
-useCanvasMousedown(onMousedown)
-useCanvasMousemove(onMousemove)
-useCanvasMouseup(onMouseup)
+onUnmounted(() => {
+  stopDrawSelect()
+  stopMousedown()
+  stopMousemove()
+  stopMouseup()
+})
 
 </script>
 
 <template>
   <ScreenshotButton title="矩形" icon="icon-rectangle" :checked="checked" @click="onSelectRectangle">
     <template v-slot:option>
-      <ScreenshotSizeColor :size="size" :color="color" :onSizeChange="onSizeChange" :onColorChange="onColorChange" />
+      <ScreenshotSize :value="size" :onChange="onSizeChange" />
+      <ScreenshotColor :value="color" :onChange="onColorChange" />
     </template>
   </ScreenshotButton>
 </template>

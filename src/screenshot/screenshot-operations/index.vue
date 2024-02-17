@@ -1,14 +1,40 @@
 <script setup lang="ts">
-import { provide, ref, watch } from 'vue'
+import {
+	computed,
+	ref,
+	watch,
+} from 'vue'
 import { useStore } from '../store'
-import OperationButtons, { OperationsRectKey } from '../operations'
+import { operationsRect } from '../operations/state'
+import OperationButtons from '../operations'
 
+const offset = 10 // 间距
 const store = useStore()
-const operationsRect = ref<Bounds | null>(null)
-const position = ref<Position | null>(null)
-const oScreenshotOperations = ref<HTMLDivElement>(null)
+const oScreenshotOperations = ref<HTMLDivElement | null>(null)
 
-provide(OperationsRectKey, operationsRect)
+const position = computed(() => {
+	const bounds = store.bounds
+	const width = operationsRect.width
+	const height = operationsRect.height
+	if (!(bounds && width != null && height != null)) return
+
+	let x = bounds.x + bounds.width - width // 右对齐
+	let y = bounds.y + bounds.height + offset // 下对齐
+
+	if (x < 0) { // 左碰撞
+		x = 0
+	}
+
+	if (x > store.width - width) { // 右碰撞
+		x = store.width - width
+	}
+
+	if (y > store.height - height) { // 下碰撞
+		y = store.height - height
+	}
+
+	return { x, y }
+})
 
 const onDoubleClick = (e: MouseEvent) => {
 	e.stopPropagation()
@@ -19,69 +45,32 @@ const onContextMenu = (e: MouseEvent) => {
 	e.stopPropagation()
 }
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
-watch(store.bounds, (bounds) => {
-	if (!bounds || !oScreenshotOperations.value) {
-		return
-	}
+// 实时计算操作框信息
+watch(() => store.bounds, (bounds) => {
+	if (!bounds) return
 
-	const elRect = oScreenshotOperations.value.getBoundingClientRect()
-
-	let x = bounds.x + bounds.width - elRect.width
-	let y = bounds.y + bounds.height + 10
-
-	if (x < 0) {
-		x = 0
-	}
-
-	if (x > width - elRect.width) {
-		x = width - elRect.width
-	}
-
-	if (y > height - elRect.height) {
-		y = height - elRect.height - 10
-	}
-
-	// 小数存在精度问题
-	if (
-		!position ||
-		Math.abs(position.x - x) > 1 ||
-		Math.abs(position.y - y) > 1
-	) {
-		position.value = { x, y }
-	}
-
-	// 小数存在精度问题
-	if (
-		!operationsRect ||
-		Math.abs(operationsRect.value.x - elRect.x) > 1 ||
-		Math.abs(operationsRect.value.y - elRect.y) > 1 ||
-		Math.abs(operationsRect.value.width - elRect.width) > 1 ||
-		Math.abs(operationsRect.value.height - elRect.height) > 1
-	) {
-		operationsRect.value = {
-			x: elRect.x,
-			y: elRect.y,
-			width: elRect.width,
-			height: elRect.height,
-		}
+	const rect = oScreenshotOperations.value?.getBoundingClientRect()
+	if (rect) {
+		operationsRect.x = rect.x
+		operationsRect.y = rect.y
+		operationsRect.width = rect.width
+		operationsRect.height = rect.height
 	}
 })
 </script>
 
 <template>
-	<div v-if="store.bounds" ref="oScreenshotOperations" class="screenshot-operations" style="{
-			visibility: position ? 'visible' : 'hidden',
-			transform: `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px)`,
-		}" @dblclick="onDoubleClick" @contextmenu="onContextMenu">
+	<div ref="oScreenshotOperations" class="screenshot-operations" :style="{
+		visibility: position ? undefined : 'hidden',
+		transform: `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px)`,
+	}" @dblclick="onDoubleClick" @contextmenu="onContextMenu">
 		<div class="screenshot-operations-buttons">
-			<template v-for="(OperationButton, index) of OperationButtons">
-				<div v-if="OperationButton === '|'" :key="`${index}-a`" class="screenshot-operations-divider" />
-				<OperationButton v-else :key="`${index}-b`" />
+			<template v-for="(OperationButton, index) of OperationButtons" :key="index">
+				<div v-if="OperationButton === '|'" class="screenshot-operations-divider" />
+				<component v-else :is="OperationButton" />
 			</template>
 		</div>
 	</div>
-	<div v-else />
 </template>
 
 <style lang="scss">

@@ -1,4 +1,5 @@
 import { TextData, TextEditData } from './types'
+import type { HistoryItemSource, Point } from '../../types'
 
 export const sizes: Record<number, number> = {
   3: 18,

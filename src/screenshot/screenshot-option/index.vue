@@ -1,116 +1,97 @@
 <script setup lang="ts">
-import { inject, ref, watch } from 'vue'
-import { OperationsRectKey } from '../operations'
+import {
+	computed,
+	ref,
+} from 'vue'
+import type { Position } from '../types'
+import { operationsRect } from '../operations/state'
 
-const props = defineProps<{
-	open?: boolean
-}>()
+interface OptionBox {
+	placement: Placement // 选项框位于操作按钮框位置
+	position?: Position // 选项框坐标
+	offsetX: number // 选项框小箭头图标
+}
 
-export enum Placement {
+enum Placement {
 	Bottom = 'bottom',
 	Top = 'top',
 }
 
-const childrenRef = ref<HTMLDivElement | null>(null)
-const popoverRef = ref<HTMLDivElement | null>(null)
-const contentRef = ref<HTMLDivElement | null>(null)
-const operationsRect = inject<Bounds>(OperationsRectKey)
-const placement = ref<Placement>(Placement.Bottom)
-const position = ref<Position | null>(null)
-const offsetX = ref(0)
+const props = defineProps<{ open?: boolean }>()
+const oChildren = ref<HTMLDivElement | null>(null)
+const oOption = ref<HTMLDivElement | null>(null)
 
-const getPopoverEl = () => {
-	if (!popoverRef.value) {
-		popoverRef.value = document.createElement('div')
+const box = computed<OptionBox>(() => {
+	const box: OptionBox = {
+		placement: Placement.Bottom,
+		offsetX: 0,
 	}
-	return popoverRef.value
-}
 
-watch([props.open], open => {
-	const $el = getPopoverEl()
-	if (open) {
-		document.body.appendChild($el)
+	if (!props.open) {
+		return box
 	}
-	return () => {
-		$el.remove()
-	}
-})
-
-watch([
-	placement,
-	position,
-	offsetX,
-], () => {
 	if (
-		!open ||
-		!operationsRect ||
-		!childrenRef.value ||
-		!contentRef.value
+		!operationsRect.x ||
+		!oChildren.value ||
+		!oOption.value
 	) {
-		return
+		throw new Error('渲染操作绘制按钮子选项失败')
 	}
 
-	const childrenRect = childrenRef.value.getBoundingClientRect()
-	const contentRect = contentRef.value.getBoundingClientRect()
+	const childrenRect = oChildren.value.getBoundingClientRect()
+	const contentRect = oOption.value.getBoundingClientRect()
 
-	let currentPlacement = placement
-	let x = childrenRect.left + childrenRect.width / 2
-	let y = childrenRect.top + childrenRect.height
-	let currentOffsetX = offsetX
+	let x = childrenRect.left + childrenRect.width / 2 // 对齐选中操作按钮中间
+	let y = childrenRect.top + childrenRect.height + /* 间距 */10
 
 	// 如果左右都越界了，就以左边界为准
 	if (x + contentRect.width / 2 > operationsRect.x + operationsRect.width) {
 		const ox = x
 		x = operationsRect.x + operationsRect.width - contentRect.width / 2
-		currentOffsetX.value = ox - x
+		box.offsetX = ox - x
 	}
 
 	// 左边不能超出
 	if (x < operationsRect.x + contentRect.width / 2) {
 		const ox = x
 		x = operationsRect.x + contentRect.width / 2
-		currentOffsetX.value = ox - x
+		box.offsetX = ox - x
 	}
 
 	// 如果上下都越界了，就以上边界为准
 	if (y > window.innerHeight - contentRect.height) {
-		if (currentPlacement.value === Placement.Bottom) {
-			currentPlacement.value = Placement.Top
-		}
+		box.placement = Placement.Top
 		y = childrenRect.top - contentRect.height
 	}
 
 	if (y < 0) {
-		if (currentPlacement.value === Placement.Top) {
-			currentPlacement.value = Placement.Bottom
-		}
+		box.placement = Placement.Bottom
 		y = childrenRect.top + childrenRect.height
 	}
-	if (currentPlacement.value !== placement.value) {
-		placement.value = currentPlacement.value
-	}
-	if (position.value?.x !== x || position.value.y !== y) {
-		position.value = { x, y }
-	}
 
-	if (currentOffsetX.value !== offsetX.value) {
-		offsetX.value = currentOffsetX.value
-	}
+	box.position = { x, y }
+	return box
 })
 </script>
 
 <template>
-	<slot ref="childrenRef" />
+	<!-- `v-slot:name` 指令只能放到 `template` 标签，这里需要套个 div 获取 ref -->
+	<div ref="oChildren" class="screenshot-button-box">
+		<slot name="children" />
+	</div>
 
-	<Teleport v-if="open && content" :to="getPopoverEl">
-		<div ref="contentRef" class="screenshot-option" :style="{
-			visibility: position ? 'visible' : 'hidden',
-			transform: `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px)`,
-		}" data-placement="placement">
-			<div class="screenshot-option-container">
-				<slot name="content" />
-			</div>
-			<div class="screenshot-option-arrow" :style="{ marginLeft: offsetX }" />
+	<Teleport to="#teleport-operations">
+		<div ref="oOption" class="screenshot-option" :data-placement="box.placement" :style="{
+			visibility: box.position ? undefined : 'hidden',
+			transform: box.position ? `translate(${box.position.x}px, ${box.position.y}px)` : undefined,
+		}">
+			<template v-if="open">
+				<div class="screenshot-option-container">
+					<!-- 渲染制作图案的子选项 (尺寸、颜色) -->
+					<slot name="option" />
+				</div>
+				<div class="screenshot-option-arrow" :style="{ marginLeft: box.offsetX }" />
+			</template>
 		</div>
 	</Teleport>
 </template>
@@ -131,6 +112,7 @@ watch([
 	}
 
 	&-container {
+		display: flex;
 		height: $button-size + 3 * 2 + 2;
 		background-color: #fff;
 		padding: 3px;

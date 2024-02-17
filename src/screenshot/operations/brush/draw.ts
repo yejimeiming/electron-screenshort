@@ -1,6 +1,10 @@
 import type { BrushData, BrushEditData } from './types'
+import type { HistoryItemSource } from '../../types'
 
-export function draw(ctx: CanvasRenderingContext2D, action: HistoryItemSource<BrushData, BrushEditData>): void {
+export function draw(
+  ctx: CanvasRenderingContext2D,
+  action: HistoryItemSource<BrushData, BrushEditData>,
+): void {
   const { size, color, points } = action.data
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'

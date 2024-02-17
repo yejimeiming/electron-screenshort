@@ -1,4 +1,5 @@
-import { MosaicData } from './types'
+import type { MosaicData } from './types'
+import type { HistoryItemSource } from '../../types'
 
 export function getColor(x: number, y: number, imageData: ImageData): number[] {
   if (!imageData) {

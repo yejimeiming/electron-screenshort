@@ -1,8 +1,8 @@
-import { HistoryItemSource, Point } from '../types'
+import type { HistoryItemSource, Point } from '../types'
 
 const CircleRadius = 4
 
-export function drawDragCircle (ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawDragCircle(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.lineWidth = 1
   ctx.strokeStyle = '#000000'
   ctx.fillStyle = '#ffffff'
@@ -13,13 +13,13 @@ export function drawDragCircle (ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.stroke()
 }
 
-export function isHit<S, E> (ctx: CanvasRenderingContext2D, action: HistoryItemSource<S, E>, point: Point) {
+export function isHit<S, E>(ctx: CanvasRenderingContext2D, action: HistoryItemSource<S, E>, point: Point) {
   action.draw(ctx, action)
   const { data } = ctx.getImageData(point.x, point.y, 1, 1)
   return data.some(val => val !== 0)
 }
 
-export function isHitCircle (canvas: HTMLCanvasElement | null, e: MouseEvent, point: Point) {
+export function isHitCircle(canvas: HTMLCanvasElement | null, e: MouseEvent, point: Point) {
   if (!canvas) {
     return false
   }

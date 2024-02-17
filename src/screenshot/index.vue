@@ -1,46 +1,31 @@
 <script setup lang="ts">
-import { provide } from 'vue'
+import { DHistory } from './funcs/draw.history'
+import { Call } from './funcs/call'
+import { Canvas } from './screenshot-canvas/canvas'
+import { useStore } from './store'
+import { composeImage } from './utils/image'
 import ScreenshotBackground from './screenshot-background/index.vue'
 import ScreenshotCanvas from './screenshot-canvas/index.vue'
 import ScreenshotOperations from './screenshot-operations/index.vue'
-import { composeImage } from './utils/image'
-import { useStore } from './store'
-import { USE_CALL_KEY } from './hooks/use-call'
 
 import './styles/icons/iconfont.scss'
-import './styles/screenshot.scss'
 
-const props = defineProps<ScreenshotProps>()
 const store = useStore()
-
-// 将 onOk, onCancel 抛向后代组件
-provide(USE_CALL_KEY, props)
-
-const reset = () => {
-	store.emiter = {}
-	store.history = {
-		index: -1,
-		stack: [],
-	}
-	store.bounds = null
-	store.cursor = 'move'
-	store.operation = undefined
-}
 
 const onDoubleClick = async (e: MouseEvent) => {
 	if (e.button !== 0 || !store.image) {
 		return
 	}
-	if (store.bounds && store.canvasContext) {
+	if (store.bounds && Canvas.ctx) {
 		composeImage({
 			image: store.image,
 			width: store.width,
 			height: store.height,
-			history: store.history,
+			history: DHistory.history,
 			bounds: store.bounds,
 		}).then((blob) => {
-			props.onOk(blob, store.bounds)
-			reset()
+			Call.onOk(blob, store.bounds!)
+			store.reset()
 		})
 	} else {
 		const targetBounds = {
@@ -53,11 +38,11 @@ const onDoubleClick = async (e: MouseEvent) => {
 			image: store.image,
 			width: store.width,
 			height: store.height,
-			history: store.history,
+			history: DHistory.history,
 			bounds: targetBounds,
 		}).then((blob) => {
-			props.onOk(blob, targetBounds)
-			reset()
+			Call.onOk(blob, targetBounds)
+			store.reset()
 		})
 	}
 }
@@ -67,19 +52,37 @@ const onContextMenu = (e: MouseEvent) => {
 		return
 	}
 	e.preventDefault()
-	props.onCancel()
-	reset()
+	Call.onCancel()
+	store.reset()
 }
-
-// url 变化，重置截图区域
-// watch(() => store.url, () => reset())
 
 </script>
 
 <template>
-	<div class='screenshot-index' :style='{ width, height }' @dblclick='onDoubleClick' @contextmenu='onContextMenu'>
+	<div class="screenshot-index" :style="{ width: store.width, height: store.height }" @dblclick="onDoubleClick" @contextmenu="onContextMenu">
+		<!-- 背景图、悬浮框 -->
 		<ScreenshotBackground />
-		<ScreenshotCanvas ref='store.canvasContext' />
+		<!-- 截图框、二次绘制 -->
+		<ScreenshotCanvas />
+		<!-- 操作按钮 -->
 		<ScreenshotOperations />
 	</div>
 </template>
+
+<style lang="scss">
+@import "./styles/var.scss";
+
+.screenshot-index {
+	width: 100%;
+	height: 100%;
+	position: relative;
+	transform: translateZ(0);
+	cursor: crosshair;
+	font-family: $font-family;
+	&,
+	* {
+		box-sizing: border-box;
+		user-select: none;
+	}
+}
+</style>

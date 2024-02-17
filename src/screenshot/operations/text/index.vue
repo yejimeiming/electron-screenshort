@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useCursor } from '../../hooks/use-cursor'
-import { useHistory } from '../../hooks/use-history'
-import { useOperation } from '../../hooks/use-operation'
-import { useCanvasMousedown } from '../../hooks/use-canvas-mousedown'
-import { useCanvasMousemove } from '../../hooks/use-canvas-mousemove'
-import { useCanvasMouseup } from '../../hooks/use-canvas-mouseup'
-import { useDrawSelect } from '../../hooks/use-draw-select'
+import {
+  computed,
+  onUnmounted,
+  ref,
+} from 'vue'
+import { Canvas } from '../../screenshot-canvas/canvas'
+import { Events } from '../../screenshot-canvas/events'
+import { DHistory } from '../../funcs/draw.history'
 import { HistoryItemType } from '../../enums'
 import { useStore } from '../../store'
-import type { TextData, TextEditData, TextareaBounds } from './types'
-import { draw, isHit, sizes } from './utils'
-import ScreenshotButton from '../../screenshot-button/index.vue'
+import type {
+  TextData,
+  TextEditData,
+  TextareaBounds,
+} from './types'
+import type { HistoryItemEdit, HistoryItemSource } from '../../types'
+import { draw, isHit, sizes } from './draw'
 import ScreenshotTextarea from '../../screenshot-textarea/index.vue'
-import ScreenshotSizeColor from '../../screenshot-size-color/index.vue'
+import ScreenshotButton from '../../screenshot-button/index.vue'
+import ScreenshotSize from '../../screenshot-size/index.vue'
+import ScreenshotColor from '../../screenshot-color/index.vue'
 
-const [history, historyDispatcher] = useHistory()
-const [operation, operationDispatcher] = useOperation()
-const [, cursorDispatcher] = useCursor()
 const store = useStore()
 const size = ref(3)
 const color = ref('#ee5126')
@@ -26,19 +29,19 @@ const textEditRef = ref<HistoryItemEdit<TextEditData, TextData> | null>(null)
 const textareaBounds = ref<TextareaBounds | null>(null)
 const text = ref('')
 
-const checked = operation === 'Text'
+const checked = computed(() => store.operation === 'Text')
 
 const selectText = () => {
-  operationDispatcher.set('Text')
-  cursorDispatcher.set('default')
+  store.setOperation('Text')
+  store.setCursor('default')
 }
 
 const onSelectText = () => {
-  if (checked) {
+  if (checked.value) {
     return
   }
   selectText()
-  historyDispatcher.clearSelect()
+  DHistory.clearSelect()
 }
 
 const onSizeChange = (s: number) => {
@@ -57,21 +60,24 @@ const onColorChange = (c: string) => {
 
 const onTextareaChange = (value: string) => {
   text.value = value
-  if (checked && textRef.value) {
+  if (checked.value && textRef.value) {
     textRef.value.data.text = value
   }
 }
 
 const onTextareaBlur = () => {
   if (textRef.value && textRef.value.data.text) {
-    historyDispatcher.push(textRef.value)
+    DHistory.push(textRef.value)
   }
   textRef.value = null
   text.value = ''
   textareaBounds.value = null
 }
 
-const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent) => {
+const stopDrawSelect = Events.on('drawselect', (
+  e: MouseEvent,
+  action: HistoryItemSource<unknown, unknown>,
+) => {
   if (action.name !== 'Text') {
     return
   }
@@ -89,17 +95,17 @@ const onDrawSelect = (action: HistoryItemSource<unknown, unknown>, e: MouseEvent
     source: action as HistoryItemSource<TextData, TextEditData>
   }
 
-  historyDispatcher.select(action)
-}
+  DHistory.select(action)
+})
 
-const onMousedown = (e: MouseEvent) => {
-  if (!checked || !store.canvasContext || textRef.value || !store.bounds) {
+const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
+  if (!checked.value || !Canvas.ctx || textRef.value || !store.bounds) {
     return
   }
   const { left, top } =
-    store.canvasContext.canvas.getBoundingClientRect()
+    Canvas.ctx.canvas.getBoundingClientRect()
   const fontFamily = window.getComputedStyle(
-    store.canvasContext.canvas
+    Canvas.ctx.canvas
   ).fontFamily
   const x = e.clientX - left
   const y = e.clientY - top
@@ -126,43 +132,46 @@ const onMousedown = (e: MouseEvent) => {
     maxWidth: store.bounds.width - x,
     maxHeight: store.bounds.height - y,
   }
-}
+})
 
-const onMousemove = (e: MouseEvent): void => {
-  if (!checked) {
+const stopMousemove = Events.on('mousemove', (e: MouseEvent): void => {
+  if (!checked.value) {
     return
   }
 
   if (textEditRef.value) {
     textEditRef.value.data.x2 = e.clientX
     textEditRef.value.data.y2 = e.clientY
-    if (history.top !== textEditRef.value) {
+    if (DHistory.history.top !== textEditRef.value) {
       textEditRef.value.source.editHistory.push(textEditRef.value)
-      historyDispatcher.push(textEditRef.value)
+      DHistory.push(textEditRef.value)
     } else {
-      historyDispatcher.set(history)
+      DHistory.set(DHistory.history)
     }
   }
-}
+})
 
-const onMouseup = (): void => {
-  if (!checked) {
+const stopMouseup = Events.on('mouseup', (): void => {
+  if (!checked.value) {
     return
   }
 
   textEditRef.value = null
-}
+})
 
-useDrawSelect(onDrawSelect)
-useCanvasMousedown(onMousedown)
-useCanvasMousemove(onMousemove)
-useCanvasMouseup(onMouseup)
+onUnmounted(() => {
+  stopDrawSelect()
+  stopMousedown()
+  stopMousemove()
+  stopMouseup()
+})
 </script>
 
 <template>
   <ScreenshotButton title="文本" icon="icon-text" :checked="checked" @click="onSelectText">
     <template v-slot:option>
-      <ScreenshotSizeColor :size="size" :color="color" :onSizeChange="onSizeChange" :onColorChange="onColorChange" />
+      <ScreenshotSize :value="size" :onChange="onSizeChange" />
+      <ScreenshotColor :value="color" :onChange="onColorChange" />
     </template>
   </ScreenshotButton>
   <ScreenshotTextarea v-if="checked && textareaBounds" :x="textareaBounds.x" :y="textareaBounds.y"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
 import ScreenshotOption from '../screenshot-option/index.vue'
 
 const props = defineProps<{
@@ -10,7 +10,10 @@ const props = defineProps<{
 	onClick?: (e: MouseEvent) => unknown
 }>()
 
-const classNames = ref(['screenshots-button'])
+const classNames = computed(() => [
+	props.checked && 'screenshot-button-checked',
+	props.disabled && 'screenshot-button-disabled',
+].filter(Boolean) as string[])
 
 const onButtonClick = (e: MouseEvent) => {
 	if (props.disabled || !props.onClick) {
@@ -18,31 +21,26 @@ const onButtonClick = (e: MouseEvent) => {
 	}
 	props.onClick(e)
 }
-
-if (props.checked) {
-	classNames.value = classNames.value.concat('screenshots-button-checked')
-}
-
-if (props.disabled) {
-	classNames.value = classNames.value.concat('screenshots-button-disabled')
-}
 </script>
 
 <template>
 	<ScreenshotOption :open="checked">
-		<template v-slot:content>
+		<template v-slot:option>
+			<!-- slot 二段传送 -->
 			<slot name="option" />
 		</template>
-		<div :class="classNames" :title="title" @click="onButtonClick">
-			<span :class="icon" />
-		</div>
+		<template v-slot:children>
+			<div :class="['screenshot-button'].concat(classNames)" :title="title" @click="onButtonClick">
+				<span :class="icon" />
+			</div>
+		</template>
 	</ScreenshotOption>
 </template>
 
 <style lang="scss">
 @import "../styles/var.scss";
 
-.screenshots-button {
+.screenshot-button {
 	width: $button-size;
 	height: $button-size;
 	line-height: $button-size;
@@ -53,8 +51,7 @@ if (props.disabled) {
 	vertical-align: middle;
 	cursor: pointer;
 
-	&-checked,
-	&:hover {
+	&-checked {
 		background-color: #eee;
 		outline: 1px solid #777;
 	}

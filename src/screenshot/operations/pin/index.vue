@@ -1,34 +1,29 @@
 <script setup lang="ts">
-import { useCall } from '../../hooks/use-call'
-import { useHistory } from '../../hooks/use-history'
-import { useReset } from '../../hooks/use-reset'
 import { composeImage } from '../../utils/image'
+import { DHistory } from '../../funcs/draw.history'
+import { Canvas } from '../../screenshot-canvas/canvas'
 import { useStore } from '../../store'
 import ScreenshotButton from '../../screenshot-button/index.vue'
 
 const store = useStore()
-const [, historyDispatcher] = useHistory()
-const call = useCall()
-const reset = useReset()
-
 const onClick = () => {
-  const { image, width, height, history, bounds } = store
-  historyDispatcher.clearSelect()
+  const { image, width, height, bounds } = store
+  DHistory.clearSelect()
 
   setTimeout(() => {
-    if (!store.canvasContext || !image || !bounds) {
+    if (!Canvas.ctx || !image || !bounds) {
       return
     }
     composeImage({
       image,
       width,
       height,
-      history,
+      history: DHistory.history,
       bounds,
     }).then((blob) => {
-      // 没有 onPin
+      // TODO: 后期考虑做成悬浮结果 (适用图片对比场景)
       // call.onPin(blob, bounds)
-      reset()
+      store.reset()
     })
   })
 }

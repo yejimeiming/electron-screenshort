@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { useCall } from '../../hooks/use-call'
-import { useReset } from '../../hooks/use-reset'
+import { Call } from '../../funcs/call'
+import { useStore } from '../../store'
 import ScreenshotButton from '../../screenshot-button/index.vue'
 
-const call = useCall()
-const reset = useReset()
+const store = useStore()
 
 const onClick = () => {
-  call.onCancel()
-  reset()
+  Call.onCancel()
+  store.reset()
 }
 </script>
 

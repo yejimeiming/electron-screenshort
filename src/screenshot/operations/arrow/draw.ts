@@ -1,5 +1,6 @@
 import { ArrowData, ArrowEditData, ArrowEditType } from './types'
 import { drawDragCircle } from '../utils'
+import type { HistoryItemSource } from '../../types'
 
 export function getEditedArrowData(action: HistoryItemSource<ArrowData, ArrowEditData>) {
   let { x1, y1, x2, y2 } = action.data

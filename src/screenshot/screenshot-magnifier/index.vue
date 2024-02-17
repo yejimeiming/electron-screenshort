@@ -1,83 +1,69 @@
 <script setup lang="ts">
-import { defineProps, ref, watch } from 'vue'
+import {
+	computed,
+	onMounted,
+	ref,
+} from 'vue'
 import { useStore } from '../store'
+import type { Position } from '../types'
 
 const magnifier = {
 	width: 100,
 	height: 80,
 }
 
-const props = defineProps<{
-	x: number
-	y: number
-}>()
-
+const offset = 20 // 缩略图与光标空隙
 const store = useStore()
-const position = ref<Position>()
 const oScreenshotMagnifier = ref<HTMLDivElement | null>(null)
 const oCanvas = ref<HTMLCanvasElement | null>(null)
 const oContext = ref<CanvasRenderingContext2D | null>(null)
-const rgb = ref('000000')
+const rect = ref<DOMRect>()
 
-watch([
-	props.x,
-	props.y,
-	store.width,
-	store.height,
-], () => {
-	if (!oScreenshotMagnifier.value) return
+const position = computed<Position>(() => {
+	if (!rect.value) return
 
-	const { x, y } = props
-	const { width, height } = store
+	const { width, height } = rect.value
+	const x = store.clientX
+	const y = store.clientY
+	const w = store.width
+	const h = store.height
 
-	const elRect = oScreenshotMagnifier.value.getBoundingClientRect()
-	let tx = x + 20
-	let ty = y + 20
+	let x2 = x + offset
+	let y2 = y + offset
 
-	if (tx + elRect.width > width) {
-		tx = x - elRect.width - 20
+	if (x2 + width > w) { // 右边碰撞
+		x2 = x - width - offset
 	}
-	if (ty + elRect.height > height) {
-		ty = y - elRect.height - 20
+	if (y2 + height > h) { // 下边碰撞
+		y2 = y - height - offset
 	}
 
-	if (tx < 0) {
-		tx = 0
-	}
-	if (ty < 0) {
-		ty = 0
-	}
-
-	position.value = { x: tx, y: ty }
+	return { x: x2, y: y2 }
 })
 
-watch([
-	props.x,
-	props.y,
-	store.width,
-	store.height,
-], () => {
+const rgb = computed(() => {
 	if (!oCanvas.value) {
 		oContext.value = null
-		return
+		return '000000'
 	}
-
-	const { x, y } = props
-	const { width, height, image } = store
-
-	if (!oContext.value) {
-		oContext.value = oCanvas.value.getContext('2d')
-	}
-
-	if (!oContext.value) {
+	const ctx = oContext.value ??= oCanvas.value.getContext('2d')
+	if (!ctx) {
 		throw new Error('获取 canvas.context 失败')
 	}
 
-	const ctx = oContext.value
+	const x = store.clientX
+	const y = store.clientY
+	const image = store.image
+	const width = store.width
+	const height = store.height
+
 	ctx.clearRect(0, 0, magnifier.width, magnifier.height)
 	const rx = image.naturalWidth / width
 	const ry = image.naturalHeight / height
+
 	// 显示原图比例
+	// TODO: 这里处理并不好 drawImage 也即副作用会使 computed 变得不纯粹；drawImage 频繁也会影响性能
+	// TODO: 使用 image + transform 性能更高
 	ctx.drawImage(
 		image,
 		x * rx - magnifier.width / 2,
@@ -89,6 +75,7 @@ watch([
 		magnifier.width,
 		magnifier.height,
 	)
+
 	const { data } = ctx.getImageData(
 		Math.floor(magnifier.width / 2),
 		Math.floor(magnifier.height / 2),
@@ -100,22 +87,27 @@ watch([
 		.join('')
 		.toUpperCase()
 
-	rgb.value = hex
+	return hex
+})
+
+onMounted(() => {
+	rect.value = oScreenshotMagnifier.value.getBoundingClientRect()
 })
 </script>
 
 <template>
-	<div ref='oScreenshotMagnifier' class='screenshots-magnifier' :style='{
-		transform: `translate(${position?.x}px, ${position?.y}px)`,
-	}'>
-		<div class='screenshots-magnifier-body'>
-			<canvas ref={coCanvas class='screenshots-magnifier-body-canvas' width={magnifier.width} height={magnifier.height} />
+	<div ref="oScreenshotMagnifier" class="screenshot-magnifier" :style="{
+		transform: `translate(${position?.x ?? 0}px, ${position?.y ?? 0}px)`,
+	}">
+		<div class="screenshot-magnifier-body">
+			<canvas ref="oCanvas" class="screenshot-magnifier-body-canvas" :width="magnifier.width"
+				:height="magnifier.height" />
 		</div>
-		<div class='screenshots-magnifier-footer'>
-			<div class='screenshots-magnifier-footer-item'>
-				坐标: ({x},{y})
+		<div class="screenshot-magnifier-footer">
+			<div class="screenshot-magnifier-footer-item">
+				坐标: ({{ [store.clientX, store.clientY].join(', ') }})
 			</div>
-			<div class='screenshots-magnifier-footer-item'>RGB: #{rgb}</div>
+			<div class="screenshot-magnifier-footer-item">RGB: #{{ rgb }}</div>
 		</div>
 	</div>
 </template>
@@ -123,7 +115,7 @@ watch([
 <style lang="scss">
 @import "../styles/var.scss";
 
-.screenshots-magnifier {
+.screenshot-magnifier {
 	position: absolute;
 	font-family: $font-family;
 	left: 0;

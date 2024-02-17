@@ -1,3 +1,5 @@
+import type { Point } from '../../types'
+
 export interface BrushData {
   size: number
   color: string

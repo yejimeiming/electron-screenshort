@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { calculateNodeSize } from './utils'
 
 const props = defineProps<{
@@ -14,30 +14,9 @@ const props = defineProps<{
 	onBlur: (e: FocusEvent) => unknown
 }>()
 
-const popoverRef = ref<HTMLDivElement | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const width = ref(0)
 const height = ref(0)
-
-const getPopoverEl = () => {
-	if (!popoverRef.value) {
-		popoverRef.value = document.createElement('div')
-	}
-	return popoverRef.value
-}
-
-onMounted(() => {
-	if (popoverRef.value) {
-		document.body.appendChild(popoverRef.value)
-		requestAnimationFrame(() => {
-			textareaRef.value?.focus()
-		})
-	}
-
-	return () => {
-		popoverRef.value?.remove()
-	}
-})
 
 watch([
 	props.value,
@@ -62,7 +41,7 @@ watch([
 </script>
 
 <template>
-	<Teleport :to="getPopoverEl">
+	<Teleport to="#teleport-operations">
 		<textarea ref="textareaRef" class="screenshot-textarea" :style="{
 			color,
 			width,

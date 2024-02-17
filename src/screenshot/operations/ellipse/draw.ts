@@ -1,4 +1,9 @@
-import { type EllipseData, type EllipseEditData, EllipseEditType } from './types'
+import {
+  type EllipseData,
+  type EllipseEditData,
+  EllipseEditType,
+} from './types'
+import type { HistoryItemSource } from '../../types'
 import { drawDragCircle } from '../utils'
 
 export function getEditedEllipseData(action: HistoryItemSource<EllipseData, EllipseEditData>) {

@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { useHistory } from '../../hooks/use-history'
+import { DHistory } from '../../funcs/draw.history'
 import ScreenshotButton from '../../screenshot-button/index.vue'
 
-const [history, historyDispatcher] = useHistory()
-
 const onClick = () => {
-  historyDispatcher.undo()
+  DHistory.undo()
 }
 </script>
 
 <template>
-  <ScreenshotButton title="撤销" icon="icon-undo" :disabled="history.index === -1" @click="onClick" />
+  <ScreenshotButton title="撤销" icon="icon-undo" :disabled="DHistory.history.index === -1" @click="onClick" />
 </template>

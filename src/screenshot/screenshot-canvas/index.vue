@@ -64,7 +64,7 @@ const updateBounds = (mousedownEvent: MouseEvent, mousemoveEvent: MouseEvent) =>
 	))
 }
 
-DHistory.listen(() => draw())
+const unlistenHistory = DHistory.listen(() => draw())
 
 Mouse.move(({ event, mousedown }) => {
 	if (store.operation) { // 二次绘制
@@ -113,7 +113,10 @@ Mouse.down(({ event, dataset }) => {
 })
 
 onMounted(() => Canvas.ctx = oCanvas.value?.getContext('2d')!)
-onUnmounted(() => Canvas.ctx = null)
+onUnmounted(() => {
+	Canvas.ctx = null
+	unlistenHistory()
+})
 </script>
 
 <template>

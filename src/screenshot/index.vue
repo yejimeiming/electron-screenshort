@@ -5,7 +5,7 @@ import { Mouse } from './funcs/mouse'
 import { points2bounds } from './funcs/mouse.utils'
 import { Canvas } from './screenshot-canvas/canvas'
 import { useStore } from './store'
-import { composeImage } from './utils/image'
+import { blobToBase64, composeImage } from './utils/image'
 import ScreenshotBackground from './screenshot-background/index.vue'
 import ScreenshotCanvas from './screenshot-canvas/index.vue'
 import ScreenshotOperations from './screenshot-operations/index.vue'
@@ -66,13 +66,14 @@ Call._init({
 
 		alert('已经复制截图到剪切板 ^_^')
 
-		window.ipcRenderer.invoke('exit-screenshot')
+		await window.ipcRenderer.invoke('exit-screenshot')
 	},
 	async onCancel() {
-		window.ipcRenderer.invoke('exit-screenshot')
+		await window.ipcRenderer.invoke('exit-screenshot')
 	},
 	async onSave(blob: Blob) {
-		console.log('点击保存:', blob)
+		await window.ipcRenderer.invoke('save-screenshot', await blobToBase64(blob))
+		await window.ipcRenderer.invoke('exit-screenshot')
 	}
 })
 
@@ -102,8 +103,8 @@ Mouse.move(args => {
 </script>
 
 <template>
-	<div class="screenshot-index" :style="{ width: `${store.width}px`, height: `${store.height}px` }" @dblclick="onDoubleClick"
-		@contextmenu="onContextMenu">
+	<div class="screenshot-index" :style="{ width: `${store.width}px`, height: `${store.height}px` }"
+		@dblclick="onDoubleClick" @contextmenu="onContextMenu">
 		<!-- 背景图、悬浮框 -->
 		<ScreenshotBackground />
 		<!-- 截图框、二次绘制 -->

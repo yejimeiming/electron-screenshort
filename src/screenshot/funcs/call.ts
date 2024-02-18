@@ -16,6 +16,7 @@ export class Call {
   }) {
     Call._onOk = funcs.onOk
     Call._onCancel = funcs.onCancel
+    Call._onSave = funcs.onSave
   }
 
   static onOk(blob: Blob, bounds: Bounds) {

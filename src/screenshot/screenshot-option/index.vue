@@ -31,7 +31,8 @@ const box = computed<OptionBox>(() => {
 		return box
 	}
 	if (
-		!operationsRect.x ||
+		operationsRect.x == null ||
+		operationsRect.width == null ||
 		!oChildren.value ||
 		!oOption.value
 	) {
@@ -90,7 +91,7 @@ const box = computed<OptionBox>(() => {
 					<!-- 渲染制作图案的子选项 (尺寸、颜色) -->
 					<slot name="option" />
 				</div>
-				<div class="screenshot-option-arrow" :style="{ marginLeft: box.offsetX }" />
+				<div class="screenshot-option-arrow" :style="{ marginLeft: `${box.offsetX}px` }" />
 			</template>
 		</div>
 	</Teleport>

@@ -19,12 +19,12 @@ const oCanvas = ref<HTMLCanvasElement | null>(null)
 const oContext = ref<CanvasRenderingContext2D | null>(null)
 const rect = ref<DOMRect>()
 
-const position = computed<Position>(() => {
+const position = computed<Position | void>(() => {
 	if (!rect.value) return
 
 	const { width, height } = rect.value
-	const x = store.clientX
-	const y = store.clientY
+	const x = store.clientX!
+	const y = store.clientY!
 	const w = store.width
 	const h = store.height
 
@@ -51,8 +51,8 @@ const rgb = computed(() => {
 		throw new Error('获取 canvas.context 失败')
 	}
 
-	const x = store.clientX
-	const y = store.clientY
+	const x = store.clientX!
+	const y = store.clientY!
 	const image = store.image
 	const width = store.width
 	const height = store.height
@@ -91,7 +91,7 @@ const rgb = computed(() => {
 })
 
 onMounted(() => {
-	rect.value = oScreenshotMagnifier.value.getBoundingClientRect()
+	rect.value = oScreenshotMagnifier.value?.getBoundingClientRect()
 })
 </script>
 

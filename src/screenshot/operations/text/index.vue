@@ -123,7 +123,7 @@ const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
     },
     editHistory: [],
     draw,
-    isHit
+    isHit,
   }
 
   textareaBounds.value = {

@@ -102,7 +102,7 @@ Mouse.move(args => {
 </script>
 
 <template>
-	<div class="screenshot-index" :style="{ width: store.width, height: store.height }" @dblclick="onDoubleClick"
+	<div class="screenshot-index" :style="{ width: `${store.width}px`, height: `${store.height}px` }" @dblclick="onDoubleClick"
 		@contextmenu="onContextMenu">
 		<!-- 背景图、悬浮框 -->
 		<ScreenshotBackground />

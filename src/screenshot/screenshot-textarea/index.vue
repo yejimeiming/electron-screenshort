@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { calculateNodeSize } from './utils'
+import {
+	computed,
+	onMounted,
+	ref,
+} from 'vue'
+import { type Size, calculateNodeSize } from './utils'
 
 const props = defineProps<{
 	x: number
@@ -15,28 +19,25 @@ const props = defineProps<{
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
-const width = ref(0)
-const height = ref(0)
+const boxSize = computed<Size>(() => {
+	const value = props.value
+	const maxWidth = props.maxWidth
+	const maxHeight = props.maxHeight
 
-watch([
-	props.value,
-	props.maxWidth,
-	props.maxHeight,
-], () => {
-	if (!textareaRef.value) return
-	const {
-		value,
-		maxWidth,
-		maxHeight,
-	} = props
-	const { width: w, height: h } = calculateNodeSize(
-		textareaRef.value,
-		value,
-		maxWidth,
-		maxHeight,
-	)
-	width.value = w
-	height.value = h
+	return textareaRef.value
+		? calculateNodeSize(
+			textareaRef.value,
+			value,
+			maxWidth,
+			maxHeight,
+		)
+		: { width: 20, height: 20 } // 默认最小宽高
+})
+
+onMounted(() => {
+	requestAnimationFrame(() => {
+		textareaRef.value?.focus()
+	});
 })
 </script>
 
@@ -44,13 +45,14 @@ watch([
 	<Teleport to="#teleport-operations">
 		<textarea ref="textareaRef" class="screenshot-textarea" :style="{
 			color,
-			width,
-			height,
-			maxWidth,
-			maxHeight,
-			fontSize: size,
-			lineHeight: `${size}px`, transform: `translate(${x}px, ${y}px)`,
-		}" :value="value" @change="onChange?.(($event.target as any).value)" @blur="onBlur?.($event)" />
+			width: `${boxSize.width}px`,
+			height: `${boxSize.height}px`,
+			maxWidth: `${maxWidth}px`,
+			maxHeight: `${maxHeight}px`,
+			fontSize: `${size}px`,
+			lineHeight: `${size}px`,
+			transform: `translate(${x}px, ${y}px)`,
+		}" :value="value" @input="onChange?.(($event.target as any).value)" @blur="onBlur?.($event)" />
 	</Teleport>
 </template>
 

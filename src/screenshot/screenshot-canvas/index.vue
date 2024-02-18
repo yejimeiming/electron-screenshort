@@ -128,8 +128,8 @@ onUnmounted(() => {
 		<div class="screenshot-canvas-body">
 			<!-- 保证一开始就显示，减少加载时间 -->
 			<img class="screenshot-canvas-image" :src="store.url" :style="{
-				width: store.width,
-				height: store.height,
+				width: `${store.width}px`,
+				height: `${store.height}px`,
 				transform: `translate(${-$bounds.x}px, ${-$bounds.y}px)`,
 			}" />
 			<canvas ref="oCanvas" class="screenshot-canvas-panel" :width="$bounds.width" :height="$bounds.height" />

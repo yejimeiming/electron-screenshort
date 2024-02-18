@@ -33,17 +33,15 @@ const selectMosaic = () => {
 }
 
 const onSelectMosaic = () => {
-  if (checked.value) {
-    return
-  }
+  if (checked.value) return
+
   selectMosaic()
   DHistory.clearSelect()
 }
 
 const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
-  if (!checked.value || mosaicRef.value || !imageDataRef.value || !Canvas.ctx) {
-    return
-  }
+  if (!checked.value) return
+  if (!imageDataRef.value || !Canvas.ctx) return
 
   const rect = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - rect.x
@@ -68,9 +66,8 @@ const stopMousedown = Events.on('mousedown', (e: MouseEvent) => {
 })
 
 const stopMousemove = Events.on('mousemove', (e: MouseEvent) => {
-  if (!checked.value || !mosaicRef.value || !Canvas.ctx || !imageDataRef.value) {
-    return
-  }
+  if (!checked.value) return
+  if (!mosaicRef.value || !Canvas.ctx || !imageDataRef.value) return
 
   const rect = Canvas.ctx.canvas.getBoundingClientRect()
   const x = e.clientX - rect.x
@@ -125,24 +122,16 @@ const stopMousemove = Events.on('mousemove', (e: MouseEvent) => {
 })
 
 const stopMouseup = Events.on('mouseup', () => {
-  if (!checked.value) {
-    return
-  }
+  if (!checked.value) return
 
   mosaicRef.value = null
 })
 
-watch(() => [
-  store.width,
-  store.height,
-  store.bounds,
-  store.image,
-  checked,
-], () => {
+// 点击 Mosaic 按钮引起 checked 变化触发 watch
+watch(checked, () => {
   const { bounds, image, width, height } = store
-  if (!bounds || !image || !checked.value) {
-    return
-  }
+  if (!checked.value) return
+  if (!bounds) return
 
   const $canvas = document.createElement('canvas')
 
@@ -170,7 +159,7 @@ watch(() => [
     bounds.height,
   )
 
-  // imageDataRef.value = canvasContext.getImageData(0, 0, bounds.width, bounds.height)
+  imageDataRef.value = canvasContext.getImageData(0, 0, bounds.width, bounds.height)
 })
 
 onUnmounted(() => {
